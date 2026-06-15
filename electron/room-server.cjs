@@ -1,5 +1,15 @@
 const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
 const { Server } = require('socket.io');
+
+const participantTemplate = fs.readFileSync(path.join(__dirname, 'participant.html'), 'utf8');
+const characterAssets = new Map([
+  ['hedgehog', 'godori-storybook.png'],
+  ['cat', 'character-cat.png'],
+  ['hamster', 'character-hamster.png'],
+  ['rabbit', 'character-rabbit.png'],
+]);
 
 function createRoomServer(port = 4317) {
   const rooms = new Map();
@@ -15,16 +25,23 @@ function createRoomServer(port = 4317) {
       return;
     }
 
+    const assetMatch = url.pathname.match(/^\/character\/(hedgehog|cat|hamster|rabbit)\.png$/);
+    if (assetMatch) {
+      const filename = characterAssets.get(assetMatch[1]);
+      const assetPath = path.join(__dirname, '..', 'assets', filename);
+      response.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' });
+      fs.createReadStream(assetPath).pipe(response);
+      return;
+    }
+
     const match = url.pathname.match(/^\/join\/([A-Z0-9]{6})\/?$/i);
     if (!match) {
       response.writeHead(404).end('Not found');
       return;
     }
     const room = match[1].toUpperCase();
-    const serverUrl = `${protocol}://${host}`;
-    const deepLink = `focuspet://join?room=${room}&server=${encodeURIComponent(serverUrl)}`;
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    response.end(`<!doctype html><meta charset="utf-8"><title>포커스 펫 초대</title><style>body{font-family:sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#fffaf2;color:#342a25}.card{padding:28px;border-radius:18px;background:white;box-shadow:0 12px 40px #342a2520;text-align:center}a{display:inline-block;margin-top:12px;padding:12px 18px;border-radius:10px;background:#df725f;color:white;text-decoration:none}</style><div class="card"><h2>포커스 펫 집중방</h2><p>방 코드: <strong>${room}</strong></p><a href="${deepLink}">앱으로 참여하기</a><p><small>포커스 펫 앱이 설치되어 있어야 합니다.</small></p></div>`);
+    response.end(participantTemplate.replaceAll('__ROOM__', room));
   });
   const io = new Server(server, { cors: { origin: '*' } });
 

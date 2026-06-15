@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>포커스 펫 집중방</title>
+  <style>
+    :root { font-family: "Segoe UI", "Malgun Gothic", sans-serif; color: #342a25; background: #fffaf2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 22px 16px; background: radial-gradient(circle at 90% 0, #f6dfc9, transparent 34%), #fffaf2; }
+    main { width: min(100%, 480px); margin: 0 auto; }
+    header { margin-bottom: 20px; }
+    header small { color: #c95f4d; font-weight: 800; letter-spacing: .12em; }
+    h1 { margin: 5px 0; font-size: 27px; }
+    header p { margin: 0; color: #81746c; font-size: 13px; }
+    .card { padding: 18px; border: 1px solid #6f55451f; border-radius: 18px; background: #ffffffd9; box-shadow: 0 14px 36px #342a2517; }
+    label, legend { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 800; }
+    input { width: 100%; padding: 12px 13px; border: 1px solid #6f55452d; border-radius: 11px; outline: none; background: white; font: inherit; }
+    input:focus { border-color: #df725f; box-shadow: 0 0 0 3px #df725f1c; }
+    .field { margin-top: 14px; }
+    fieldset { margin: 0; padding: 0; border: 0; }
+    .characters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .character { position: relative; display: block; padding: 5px; border: 1px solid #6f55451f; border-radius: 13px; background: #fff; cursor: pointer; }
+    .character input { position: absolute; opacity: 0; pointer-events: none; }
+    .character img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; }
+    .character:has(input:checked) { border-color: #df725f; box-shadow: 0 0 0 2px #df725f24; }
+    .time-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+    .time-row span { color: #81746c; font-size: 12px; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+    button { padding: 12px; border-radius: 11px; cursor: pointer; font: inherit; font-weight: 800; }
+    #startButton { border: 0; color: white; background: #df725f; }
+    #pauseButton { border: 1px solid #6f55452d; color: #66564b; background: white; }
+    #pauseButton:disabled { opacity: .45; cursor: default; }
+    .session { display: none; margin-top: 16px; padding: 18px; border-radius: 18px; color: white; background: #8e9b73; text-align: center; }
+    .session.active { display: block; }
+    .timer { margin: 7px 0 4px; font-size: 47px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    #sessionName { font-weight: 800; }
+    #sessionTask { margin: 4px 0 0; opacity: .9; font-size: 13px; }
+    #connection { margin-top: 12px; color: #81746c; font-size: 11px; text-align: center; }
+    @media (max-width: 380px) { .characters { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <small>ROOM __ROOM__</small>
+      <h1>함께 집중할까요?</h1>
+      <p>앱 설치 없이 캐릭터와 타이머를 설정해 참여할 수 있어요.</p>
+    </header>
+    <section class="card">
+      <fieldset>
+        <legend>캐릭터 선택</legend>
+        <div class="characters">
+          <label class="character"><input type="radio" name="character" value="hedgehog" checked><img src="/character/hedgehog.png" alt="고슴도치"></label>
+          <label class="character"><input type="radio" name="character" value="cat"><img src="/character/cat.png" alt="고양이"></label>
+          <label class="character"><input type="radio" name="character" value="hamster"><img src="/character/hamster.png" alt="햄스터"></label>
+          <label class="character"><input type="radio" name="character" value="rabbit"><img src="/character/rabbit.png" alt="토끼"></label>
+        </div>
+      </fieldset>
+      <div class="field"><label for="nickname">닉네임</label><input id="nickname" maxlength="16" placeholder="예: 토깽이"></div>
+      <div class="field"><label for="task">집중 목표</label><input id="task" maxlength="40" placeholder="예: 기획데이터 준비"></div>
+      <div class="field"><label for="minutes">집중 시간</label><div class="time-row"><input id="minutes" type="number" min="1" max="180" value="25"><span>분</span></div></div>
+      <div class="buttons"><button id="startButton" type="button">집중 시작</button><button id="pauseButton" type="button" disabled>일시정지</button></div>
+      <div id="connection">서버에 연결하는 중...</div>
+    </section>
+    <section id="session" class="session">
+      <div id="sessionName"></div><div id="timer" class="timer">25:00</div><p id="sessionTask"></p>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const room = '__ROOM__';
+    const socket = io();
+    const nickname = document.querySelector('#nickname');
+    const task = document.querySelector('#task');
+    const minutes = document.querySelector('#minutes');
+    const startButton = document.querySelector('#startButton');
+    const pauseButton = document.querySelector('#pauseButton');
+    const connection = document.querySelector('#connection');
+    const session = document.querySelector('#session');
+    const sessionName = document.querySelector('#sessionName');
+    const sessionTask = document.querySelector('#sessionTask');
+    const timer = document.querySelector('#timer');
+    const memberId = sessionStorage.getItem('focus-pet-member') || crypto.randomUUID();
+    sessionStorage.setItem('focus-pet-member', memberId);
+    let remainingSeconds = 25 * 60;
+    let interval = null;
+    let active = false;
+
+    function selectedCharacter() { return document.querySelector('input[name="character"]:checked').value; }
+    function member() { return { id: memberId, character: selectedCharacter(), nickname: nickname.value.trim(), task: task.value.trim(), remainingSeconds, running: Boolean(interval), active }; }
+    function emitUpdate() { if (socket.connected) socket.emit('member:update', member()); }
+    function render() {
+      timer.textContent = String(Math.floor(remainingSeconds / 60)).padStart(2, '0') + ':' + String(remainingSeconds % 60).padStart(2, '0');
+      sessionName.textContent = nickname.value.trim() || '집중 친구';
+      sessionTask.textContent = task.value.trim() || '함께 집중하는 중';
+      pauseButton.textContent = interval ? '일시정지' : '계속하기';
+    }
+    function startInterval() {
+      clearInterval(interval);
+      interval = setInterval(() => {
+        remainingSeconds = Math.max(0, remainingSeconds - 1);
+        render(); emitUpdate();
+        if (remainingSeconds === 0) { clearInterval(interval); interval = null; active = false; emitUpdate(); session.classList.remove('active'); }
+      }, 1000);
+    }
+
+    socket.on('connect', () => {
+      connection.textContent = '방 __ROOM__에 연결됐어요.';
+      socket.emit('room:join', { room, member: member() });
+    });
+    socket.on('disconnect', () => { connection.textContent = '연결이 끊겼어요. 다시 연결하는 중...'; });
+    startButton.addEventListener('click', () => {
+      const value = Math.max(1, Math.min(180, Number(minutes.value) || 25));
+      minutes.value = value; remainingSeconds = value * 60; active = true;
+      session.classList.add('active'); pauseButton.disabled = false; startInterval(); render(); emitUpdate();
+    });
+    pauseButton.addEventListener('click', () => {
+      if (!active) return;
+      if (interval) { clearInterval(interval); interval = null; } else { startInterval(); }
+      render(); emitUpdate();
+    });
+    document.querySelectorAll('input[name="character"]').forEach(input => input.addEventListener('change', emitUpdate));
+    nickname.addEventListener('change', emitUpdate); task.addEventListener('change', emitUpdate);
+    render();
+  </script>
+</body>
+</html>
