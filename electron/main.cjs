@@ -21,6 +21,10 @@ let pendingInvite;
 
 const PET_WIDTH = 230;
 const PET_HEIGHT = 265;
+const PET_MIN_WIDTH = 150;
+const PET_MIN_HEIGHT = Math.round(PET_MIN_WIDTH * PET_HEIGHT / PET_WIDTH);
+const PET_MAX_WIDTH = 420;
+const PET_MAX_HEIGHT = Math.round(PET_MAX_WIDTH * PET_HEIGHT / PET_WIDTH);
 const EDGE_GAP = 8;
 
 function positionFile() {
@@ -32,36 +36,41 @@ function defaultPosition() {
   return {
     x: area.x + area.width - PET_WIDTH - EDGE_GAP,
     y: area.y + area.height - PET_HEIGHT - EDGE_GAP,
+    width: PET_WIDTH,
+    height: PET_HEIGHT,
   };
 }
 
 function readSavedPosition() {
   try {
     const saved = JSON.parse(fs.readFileSync(positionFile(), 'utf8'));
-    if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) return saved;
+    if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+      const width = Math.max(PET_MIN_WIDTH, Math.min(PET_MAX_WIDTH, Number(saved.width) || PET_WIDTH));
+      return { ...saved, width, height: Math.round(width * PET_HEIGHT / PET_WIDTH) };
+    }
   } catch {}
   return defaultPosition();
 }
 
-function clampPosition(position) {
+function clampPosition(position, width = PET_WIDTH, height = PET_HEIGHT) {
   const display = screen.getDisplayNearestPoint(position);
   const area = display.workArea;
   return {
-    x: Math.max(area.x, Math.min(position.x, area.x + area.width - PET_WIDTH)),
-    y: Math.max(area.y, Math.min(position.y, area.y + area.height - PET_HEIGHT)),
+    x: Math.max(area.x, Math.min(position.x, area.x + area.width - width)),
+    y: Math.max(area.y, Math.min(position.y, area.y + area.height - height)),
   };
 }
 
 function savePetPosition() {
   if (!petWindow || petWindow.isDestroyed()) return;
-  const [x, y] = petWindow.getPosition();
-  fs.writeFileSync(positionFile(), JSON.stringify({ x, y }), 'utf8');
+  const { x, y, width, height } = petWindow.getBounds();
+  fs.writeFileSync(positionFile(), JSON.stringify({ x, y, width, height }), 'utf8');
 }
 
 function keepPetVisible() {
   if (!petWindow || petWindow.isDestroyed()) return;
-  const [x, y] = petWindow.getPosition();
-  const safe = clampPosition({ x, y });
+  const { x, y, width, height } = petWindow.getBounds();
+  const safe = clampPosition({ x, y }, width, height);
   petWindow.setPosition(safe.x, safe.y, false);
   savePetPosition();
 }
@@ -79,6 +88,7 @@ function createControllerWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
   });
   controllerWindow.loadFile(path.join(__dirname, '..', 'index.html'));
@@ -96,14 +106,19 @@ function showControllerWindow() {
 }
 
 function createPetWindow() {
-  const position = clampPosition(readSavedPosition());
+  const saved = readSavedPosition();
+  const position = clampPosition(saved, saved.width, saved.height);
   petWindow = new BrowserWindow({
     ...position,
-    width: PET_WIDTH,
-    height: PET_HEIGHT,
+    width: saved.width,
+    height: saved.height,
+    minWidth: PET_MIN_WIDTH,
+    minHeight: PET_MIN_HEIGHT,
+    maxWidth: PET_MAX_WIDTH,
+    maxHeight: PET_MAX_HEIGHT,
     frame: false,
     transparent: true,
-    resizable: false,
+    resizable: true,
     movable: true,
     minimizable: false,
     maximizable: false,
@@ -116,10 +131,12 @@ function createPetWindow() {
       preload: path.join(__dirname, 'pet-preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
   });
 
   petWindow.setAlwaysOnTop(true, 'screen-saver');
+  petWindow.setAspectRatio(PET_WIDTH / PET_HEIGHT);
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   petWindow.loadFile(path.join(__dirname, 'pet.html'));
 
@@ -128,6 +145,10 @@ function createPetWindow() {
     savePositionTimer = setTimeout(() => {
       keepPetVisible();
     }, 180);
+  });
+  petWindow.on('resized', () => {
+    clearTimeout(savePositionTimer);
+    savePositionTimer = setTimeout(keepPetVisible, 180);
   });
 
   screen.on('display-metrics-changed', keepPetVisible);
@@ -157,7 +178,7 @@ function remotePosition(index) {
   return clampPosition({
     x: area.x + area.width - PET_WIDTH - EDGE_GAP - ((index + 1) * 28),
     y: area.y + area.height - PET_HEIGHT - EDGE_GAP - ((index + 1) * 22),
-  });
+  }, PET_WIDTH, PET_HEIGHT);
 }
 
 function syncRemotePets(members) {
@@ -176,7 +197,7 @@ function syncRemotePets(members) {
         ...remotePosition(index), width: PET_WIDTH, height: PET_HEIGHT, frame: false,
         transparent: true, resizable: false, movable: true, focusable: false,
         hasShadow: false, alwaysOnTop: true, skipTaskbar: true, show: false,
-        webPreferences: { preload: path.join(__dirname, 'pet-preload.cjs'), contextIsolation: true, nodeIntegration: false },
+        webPreferences: { preload: path.join(__dirname, 'pet-preload.cjs'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
       });
       window.setAlwaysOnTop(true, 'screen-saver');
       window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -194,7 +215,6 @@ function renderRemotePet(window, member) {
   window.webContents.send('pet:character', member.character || 'hedgehog');
   window.webContents.send('pet:say', { nickname: member.nickname, task: member.task, fallback: '집중 중이에요.' });
   window.webContents.send('pet:state', member.running ? 'working' : 'resting');
-  window.webContents.send('pet:timer', { remainingSeconds: member.remainingSeconds, running: member.running });
   window.showInactive();
 }
 
@@ -338,7 +358,8 @@ app.whenReady().then(() => {
 });
 
 if (process.platform === 'win32') {
-  app.setAsDefaultProtocolClient('focuspet', process.execPath, [path.resolve(process.argv[1] || '.')]);
+  if (app.isPackaged) app.setAsDefaultProtocolClient('focuspet');
+  else app.setAsDefaultProtocolClient('focuspet', process.execPath, [path.resolve(process.argv[1] || '.')]);
 }
 
 const hasLock = app.requestSingleInstanceLock();

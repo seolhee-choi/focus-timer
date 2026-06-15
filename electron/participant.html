@@ -14,6 +14,13 @@
     h1 { margin: 5px 0; font-size: 27px; }
     header p { margin: 0; color: #81746c; font-size: 13px; }
     .card { padding: 18px; border: 1px solid #6f55451f; border-radius: 18px; background: #ffffffd9; box-shadow: 0 14px 36px #342a2517; }
+    .app-card { margin-bottom: 14px; padding: 16px; border-radius: 18px; color: #fff; background: linear-gradient(135deg, #8e9b73, #6f8060); box-shadow: 0 14px 30px #5963482b; }
+    .app-card h2 { margin: 0 0 5px; font-size: 17px; }
+    .app-card p { margin: 0 0 12px; font-size: 12px; line-height: 1.5; opacity: .9; }
+    .app-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .app-actions a { padding: 11px 8px; border-radius: 11px; color: #4f5e43; background: #fff; font-size: 12px; font-weight: 800; text-align: center; text-decoration: none; }
+    .app-actions a.secondary { color: #fff; border: 1px solid #ffffff73; background: #ffffff17; }
+    .web-label { margin: 0 0 10px; color: #81746c; font-size: 11px; text-align: center; }
     label, legend { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 800; }
     input { width: 100%; padding: 12px 13px; border: 1px solid #6f55452d; border-radius: 11px; outline: none; background: white; font: inherit; }
     input:focus { border-color: #df725f; box-shadow: 0 0 0 3px #df725f1c; }
@@ -45,8 +52,17 @@
     <header>
       <small>ROOM __ROOM__</small>
       <h1>함께 집중할까요?</h1>
-      <p>앱 설치 없이 캐릭터와 타이머를 설정해 참여할 수 있어요.</p>
+      <p>데스크톱 앱으로 참여하면 친구들의 캐릭터가 내 바탕화면에도 함께 떠요.</p>
     </header>
+    <section class="app-card">
+      <h2>바탕화면 위젯으로 참여</h2>
+      <p>이미 설치했다면 앱으로 열고, 처음이라면 Windows 설치 파일을 받아 주세요. 앱은 한 번만 설치하면 됩니다.</p>
+      <div class="app-actions">
+        <a href="focuspet://join?room=__ROOM__&amp;server=__SERVER__">앱으로 참여</a>
+        <a class="secondary" href="__INSTALLER_URL__">Windows 앱 설치</a>
+      </div>
+    </section>
+    <p class="web-label">설치하지 않고 브라우저로만 참여할 수도 있어요.</p>
     <section class="card">
       <fieldset>
         <legend>캐릭터 선택</legend>
@@ -85,6 +101,7 @@
     sessionStorage.setItem('focus-pet-member', memberId);
     let remainingSeconds = 25 * 60;
     let interval = null;
+    let deadline = null;
     let active = false;
 
     function selectedCharacter() { return document.querySelector('input[name="character"]:checked').value; }
@@ -98,11 +115,17 @@
     }
     function startInterval() {
       clearInterval(interval);
-      interval = setInterval(() => {
-        remainingSeconds = Math.max(0, remainingSeconds - 1);
-        render(); emitUpdate();
-        if (remainingSeconds === 0) { clearInterval(interval); interval = null; active = false; emitUpdate(); session.classList.remove('active'); }
-      }, 1000);
+      deadline = Date.now() + remainingSeconds * 1000;
+      const tick = () => {
+        const nextRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        if (nextRemaining !== remainingSeconds) { remainingSeconds = nextRemaining; render(); emitUpdate(); }
+        if (remainingSeconds === 0) {
+          clearInterval(interval); interval = null; deadline = null; active = false;
+          emitUpdate(); session.classList.remove('active');
+        }
+      };
+      interval = setInterval(tick, 250);
+      tick();
     }
 
     socket.on('connect', () => {
@@ -117,7 +140,7 @@
     });
     pauseButton.addEventListener('click', () => {
       if (!active) return;
-      if (interval) { clearInterval(interval); interval = null; } else { startInterval(); }
+      if (interval) { clearInterval(interval); interval = null; deadline = null; } else { startInterval(); }
       render(); emitUpdate();
     });
     document.querySelectorAll('input[name="character"]').forEach(input => input.addEventListener('change', emitUpdate));

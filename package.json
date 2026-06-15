@@ -1,17 +1,54 @@
 {
   "name": "godori-desktop-timer",
   "version": "1.0.0",
+  "author": "seolhee-choi",
   "description": "A desktop focus timer with a walking hedgehog companion",
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "room-server": "node electron/room-server.cjs"
+    "room-server": "node electron/room-server.cjs",
+    "dist:win": "electron-builder --win nsis",
+    "release:win": "electron-builder --win nsis --publish always"
   },
   "dependencies": {
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
-    "electron": "^42.4.0"
+    "electron": "^42.4.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.focuspet.timer",
+    "productName": "Focus Pet",
+    "artifactName": "Focus-Pet-Setup.exe",
+    "files": [
+      "assets/**/*",
+      "electron/**/*",
+      "app.js",
+      "index.html",
+      "styles.css",
+      "package.json"
+    ],
+    "protocols": [
+      {
+        "name": "Focus Pet Invite",
+        "schemes": ["focuspet"]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "seolhee-choi",
+      "repo": "focus-timer"
+    }
   }
 }

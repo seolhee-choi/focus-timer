@@ -5,10 +5,10 @@
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-    body { display: grid; place-items: end center; }
+    body { display: grid; place-items: center; }
     button, input { font: inherit; }
 
-    .pet { position: relative; width: 225px; height: 260px; cursor: grab; -webkit-app-region: drag; }
+    .pet { position: relative; width: 225px; height: 260px; flex: none; cursor: grab; transform-origin: center; -webkit-app-region: drag; }
     .pet:active { cursor: grabbing; }
     .mascot { position: absolute; left: 15px; bottom: 35px; width: 195px; height: 195px; object-fit: contain; filter: drop-shadow(0 8px 7px rgba(43,31,22,.22)); pointer-events: none; }
 
@@ -25,8 +25,7 @@
     .complete-panel { position: absolute; z-index: 10; left: 5px; right: 5px; top: 0; display: none; padding: 11px; border: 1px solid rgba(91,74,61,.1); border-radius: 14px; color: #342a25; background: rgba(255,253,248,.98); box-shadow: 0 10px 26px rgba(51,37,25,.22); font: 11px/1.4 "Segoe UI","Malgun Gothic",sans-serif; -webkit-app-region: no-drag; cursor: default; }
     .complete .bubble, .complete .timer-bar { display: none; }
     .complete .complete-panel { display: block; }
-    .remote .timer-bar button { display: none; }
-    .remote .timer-bar { grid-template-columns: 1fr; }
+    .remote .timer-bar { display: none; }
     .complete-title { margin: 0 0 9px; font-weight: 700; text-align: center; }
     .add-row { display: grid; grid-template-columns: 1fr 31px 68px; align-items: center; gap: 5px; }
     .add-row input { width: 100%; min-width: 0; padding: 6px; border: 1px solid #8d776733; border-radius: 7px; text-align: center; outline: none; }
@@ -80,6 +79,12 @@
       const safe = Math.max(0, Number(seconds) || 0);
       return `${String(Math.floor(safe / 60)).padStart(2,'0')}:${String(safe % 60).padStart(2,'0')}`;
     }
+    function fitPetToWindow() {
+      const scale = Math.min(innerWidth / 230, innerHeight / 265);
+      pet.style.transform = `scale(${scale})`;
+    }
+    addEventListener('resize', fitPetToWindow);
+    fitPetToWindow();
     function requestAdd(value) {
       const minutes = Number(value);
       if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) {

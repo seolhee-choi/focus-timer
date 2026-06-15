@@ -22,6 +22,7 @@ const closeRoomButton = document.querySelector('#closeRoomButton');
 let totalSeconds = 25 * 60;
 let remainingSeconds = totalSeconds;
 let timerId = null;
+let deadline = null;
 let sessionActive = false;
 let steps = 0;
 let character = localStorage.getItem('focus-pet-character') || 'hedgehog';
@@ -65,27 +66,35 @@ function setDuration(value) {
 
 function startCountdown() {
   clearInterval(timerId);
-  timerId = setInterval(async () => {
-    remainingSeconds -= 1;
-    steps += Math.round(2 + Math.random() * 4);
-    walkCount.textContent = `${steps.toLocaleString('ko-KR')} 타이핑`;
-    render();
+  deadline = Date.now() + remainingSeconds * 1000;
+  const tick = async () => {
+    const nextRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (nextRemaining !== remainingSeconds) {
+      steps += Math.max(1, remainingSeconds - nextRemaining) * Math.round(2 + Math.random() * 4);
+      remainingSeconds = nextRemaining;
+      walkCount.textContent = `${steps.toLocaleString('ko-KR')} 타이핑`;
+      render();
+    }
     if (remainingSeconds <= 0) {
       clearInterval(timerId);
       timerId = null;
+      deadline = null;
       remainingSeconds = 0;
       startButton.textContent = '완료 대기 중';
       statusText.textContent = '캐릭터 팝업에서 시간을 추가하거나 타이머를 종료해 주세요.';
       render();
       await window.godori.complete();
     }
-  }, 1000);
+  };
+  timerId = setInterval(tick, 250);
+  tick();
 }
 
 async function toggleTimer() {
   if (timerId) {
     clearInterval(timerId);
     timerId = null;
+    deadline = null;
     startButton.textContent = '계속 집중';
     statusText.textContent = '잠깐 쉬고 있어요.';
     render();
@@ -111,6 +120,7 @@ async function toggleTimer() {
 async function resetTimer() {
   clearInterval(timerId);
   timerId = null;
+  deadline = null;
   sessionActive = false;
   remainingSeconds = totalSeconds;
   steps = 0;
@@ -137,6 +147,7 @@ window.godori.onAddTime(minutes => {
 window.godori.onEndTimer(() => {
   clearInterval(timerId);
   timerId = null;
+  deadline = null;
   sessionActive = false;
   remainingSeconds = totalSeconds;
   steps = 0;

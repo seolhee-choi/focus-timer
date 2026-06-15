@@ -40,8 +40,14 @@ function createRoomServer(port = 4317) {
       return;
     }
     const room = match[1].toUpperCase();
+    const serverUrl = `${protocol}://${host}`;
+    const installerUrl = process.env.FOCUS_PET_INSTALLER_URL
+      || 'https://github.com/seolhee-choi/focus-timer/releases/latest/download/Focus-Pet-Setup.exe';
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    response.end(participantTemplate.replaceAll('__ROOM__', room));
+    response.end(participantTemplate
+      .replaceAll('__ROOM__', room)
+      .replaceAll('__SERVER__', serverUrl)
+      .replaceAll('__INSTALLER_URL__', installerUrl));
   });
   const io = new Server(server, { cors: { origin: '*' } });
 
