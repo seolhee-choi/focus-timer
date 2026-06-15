@@ -4,13 +4,24 @@ const { Server } = require('socket.io');
 function createRoomServer(port = 4317) {
   const rooms = new Map();
   const server = http.createServer((request, response) => {
-    const match = request.url?.match(/^\/join\/([A-Z0-9]{6})$/i);
+    const forwardedProtocol = request.headers['x-forwarded-proto'];
+    const protocol = forwardedProtocol || (request.socket.encrypted ? 'https' : 'http');
+    const host = request.headers['x-forwarded-host'] || request.headers.host || 'localhost';
+    const url = new URL(request.url || '/', `${protocol}://${host}`);
+
+    if (url.pathname === '/' || url.pathname === '/health') {
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      response.end(JSON.stringify({ ok: true, service: 'focus-pet-room-server' }));
+      return;
+    }
+
+    const match = url.pathname.match(/^\/join\/([A-Z0-9]{6})\/?$/i);
     if (!match) {
       response.writeHead(404).end('Not found');
       return;
     }
     const room = match[1].toUpperCase();
-    const serverUrl = `http://${request.headers.host}`;
+    const serverUrl = `${protocol}://${host}`;
     const deepLink = `focuspet://join?room=${room}&server=${encodeURIComponent(serverUrl)}`;
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     response.end(`<!doctype html><meta charset="utf-8"><title>포커스 펫 초대</title><style>body{font-family:sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#fffaf2;color:#342a25}.card{padding:28px;border-radius:18px;background:white;box-shadow:0 12px 40px #342a2520;text-align:center}a{display:inline-block;margin-top:12px;padding:12px 18px;border-radius:10px;background:#df725f;color:white;text-decoration:none}</style><div class="card"><h2>포커스 펫 집중방</h2><p>방 코드: <strong>${room}</strong></p><a href="${deepLink}">앱으로 참여하기</a><p><small>포커스 펫 앱이 설치되어 있어야 합니다.</small></p></div>`);
