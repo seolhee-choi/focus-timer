@@ -1,6 +1,6 @@
 {
   "name": "godori-desktop-timer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "seolhee-choi",
   "description": "A desktop focus timer with a walking hedgehog companion",
   "main": "electron/main.cjs",
@@ -48,7 +48,8 @@
     "publish": {
       "provider": "github",
       "owner": "seolhee-choi",
-      "repo": "focus-timer"
+      "repo": "focus-timer",
+      "releaseType": "release"
     }
   }
 }
