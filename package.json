@@ -1,0 +1,17 @@
+{
+  "name": "godori-desktop-timer",
+  "version": "1.0.0",
+  "description": "A desktop focus timer with a walking hedgehog companion",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "room-server": "node electron/room-server.cjs"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron": "^42.4.0"
+  }
+}

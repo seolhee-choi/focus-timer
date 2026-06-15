@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포커스 펫 데스크톱 타이머</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="controller">
+    <header>
+      <div class="brand">G</div>
+      <div class="title-block">
+        <small>DESKTOP FOCUS PET</small>
+        <h1>포커스 펫 타이머</h1>
+      </div>
+      <button id="openRoomButton" class="room-trigger" type="button">방 만들기 / 참여</button>
+    </header>
+
+    <section class="character-section" aria-labelledby="characterTitle">
+      <div class="section-heading">
+        <span id="characterTitle">함께할 친구</span>
+        <span>캐릭터 선택</span>
+      </div>
+      <div class="character-grid" role="radiogroup" aria-label="캐릭터 선택">
+        <button class="character-card active" data-character="hedgehog" role="radio" aria-label="고슴도치" aria-checked="true">
+          <img src="assets/godori-storybook.png" alt="고슴도치">
+        </button>
+        <button class="character-card" data-character="cat" role="radio" aria-label="고양이" aria-checked="false">
+          <img src="assets/character-cat.png" alt="고양이">
+        </button>
+        <button class="character-card" data-character="hamster" role="radio" aria-label="햄스터" aria-checked="false">
+          <img src="assets/character-hamster.png" alt="햄스터">
+        </button>
+        <button class="character-card" data-character="rabbit" role="radio" aria-label="토끼" aria-checked="false">
+          <img src="assets/character-rabbit.png" alt="토끼">
+        </button>
+      </div>
+    </section>
+
+    <section class="message">
+      <span class="status-dot"></span>
+      <p id="statusText">선택한 친구가 집중 시작을 기다리고 있어요.</p>
+    </section>
+
+    <label for="nicknameInput">닉네임</label>
+    <input id="nicknameInput" type="text" maxlength="16" autocomplete="nickname" placeholder="캐릭터가 불러줄 이름을 입력하세요">
+
+    <label for="taskInput">이번 집중 목표</label>
+    <input id="taskInput" type="text" maxlength="40" placeholder="예: 기획서 초안 완성하기">
+
+    <div class="timer" aria-live="polite">
+      <span id="minutes">25</span><i>:</i><span id="seconds">00</span>
+    </div>
+
+    <div class="presets">
+      <button data-minutes="5">5분</button>
+      <button class="active" data-minutes="25">25분</button>
+      <button data-minutes="45">45분</button>
+      <button data-minutes="60">60분</button>
+    </div>
+
+    <div class="custom-time">
+      <span>직접 설정</span>
+      <input id="customMinutes" type="number" min="1" max="180" value="25">
+      <span>분</span>
+    </div>
+
+    <div class="progress"><div id="progressBar"></div></div>
+
+    <div class="actions">
+      <button id="startButton" class="primary">집중 시작</button>
+      <button id="resetButton" class="secondary">초기화</button>
+    </div>
+
+    <footer>
+      <span>바탕화면 위에서 실행됩니다</span>
+      <span id="walkCount">0 타이핑</span>
+    </footer>
+  </main>
+
+  <div id="roomModal" class="modal-backdrop" hidden>
+    <section class="room-modal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <div class="modal-heading">
+        <div>
+          <small>FOCUS TOGETHER</small>
+          <h2 id="shareTitle">친구와 함께 집중</h2>
+        </div>
+        <button id="closeRoomButton" class="modal-close" type="button" aria-label="닫기">×</button>
+      </div>
+      <p id="roomStatus" class="room-status">연결 안 됨</p>
+      <div class="share-actions">
+        <button id="createRoomButton" type="button">새 방 만들기</button>
+        <button id="copyInviteButton" type="button" disabled>초대 링크 복사</button>
+      </div>
+      <label for="inviteInput">초대 링크로 참여</label>
+      <div class="join-row">
+        <input id="inviteInput" type="text" placeholder="받은 초대 링크를 붙여넣으세요">
+        <button id="joinRoomButton" type="button">참여</button>
+      </div>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
