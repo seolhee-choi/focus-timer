@@ -82,6 +82,17 @@ function createControllerWindow() {
     },
   });
   controllerWindow.loadFile(path.join(__dirname, '..', 'index.html'));
+  controllerWindow.on('closed', () => {
+    controllerWindow = null;
+  });
+  return controllerWindow;
+}
+
+function showControllerWindow() {
+  if (!controllerWindow || controllerWindow.isDestroyed()) createControllerWindow();
+  if (controllerWindow.isMinimized()) controllerWindow.restore();
+  controllerWindow.show();
+  controllerWindow.focus();
 }
 
 function createPetWindow() {
@@ -212,13 +223,12 @@ function connectRoom(server, room) {
 function handleInviteUrl(value) {
   const invite = parseInvite(value);
   if (!invite?.room || !invite?.server) return false;
-  if (!controllerWindow) {
+  if (!app.isReady()) {
     pendingInvite = value;
     return true;
   }
   connectRoom(invite.server, invite.room);
-  controllerWindow.show();
-  controllerWindow.focus();
+  showControllerWindow();
   return true;
 }
 
@@ -263,11 +273,7 @@ ipcMain.handle('timer:toggle-request', () => {
 });
 
 ipcMain.handle('controller:show-request', () => {
-  if (controllerWindow && !controllerWindow.isDestroyed()) {
-    if (controllerWindow.isMinimized()) controllerWindow.restore();
-    controllerWindow.show();
-    controllerWindow.focus();
-  }
+  showControllerWindow();
 });
 
 ipcMain.handle('pet:reset', () => {
@@ -326,10 +332,8 @@ app.whenReady().then(() => {
   createPetWindow();
   if (pendingInvite) handleInviteUrl(pendingInvite);
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createControllerWindow();
-      createPetWindow();
-    }
+    showControllerWindow();
+    if (!petWindow || petWindow.isDestroyed()) createPetWindow();
   });
 });
 
@@ -344,11 +348,7 @@ if (!hasLock) {
   app.on('second-instance', (_event, argv) => {
     const inviteUrl = argv.find(value => value.startsWith('focuspet://'));
     if (inviteUrl) handleInviteUrl(inviteUrl);
-    else if (controllerWindow) {
-      if (controllerWindow.isMinimized()) controllerWindow.restore();
-      controllerWindow.show();
-      controllerWindow.focus();
-    }
+    else showControllerWindow();
   });
 }
 
